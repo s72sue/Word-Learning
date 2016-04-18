@@ -21,10 +21,7 @@ import csv
  3             9
  
 """
-################################################# Global Variables ###########################################
-
-#constant parameter epsilon  - increasing its value give more and more basic level bias
-epsilon = 0.0 #0.10 - gives around 9% more basic level bias    
+################################################# Global Variables ###########################################  
 
 #nodes = ['a','b','c','d','e','f','g']
 #heights = {'o':1, 'a':0.8, 'b':0.3, 'e':0.3, 'c':0, 'd':0, 'f':0, 'g':0}
@@ -85,7 +82,7 @@ def node_height(node):
 # mainly need a list for multinomial distribution
 def cal_prior(nodes):
     # define prior probabilities
-    raw_weights = [ (node_height(node_parent(x)) - node_height(x)) for x in nodes]
+    raw_weights = [(node_height(node_parent(x)) - node_height(x)) for x in nodes]
     #raw_weights = [1 for x in nodes]
 
     # normalize prior probabilities
@@ -94,7 +91,10 @@ def cal_prior(nodes):
 
 
 def raw_prior(node):
-    return node_height(node_parent(node)) - node_height(node)
+    b = 1
+    if node == 'J':
+        b = beta
+    return b*( node_height(node_parent(node)) - node_height(node) )
     
 
 def prior(node):
@@ -144,15 +144,17 @@ def barchart(samples):
     if sum(samples) == 0:
         print "No samples collected"
         return plt
+    global final_prob    
     norm = [float(i)/sum(samples)*100 for i in samples]
+    final_prob = norm
     #norm2 = [norm[i] for i in np.nonzero(norm)[0]]
     #print "Norm2: ", norm2
     ind = np.arange(len(samples))
-    width = 1
+    width = 1                       
     plt.figure(figsize=(len(nodes), 6), facecolor='white')
     plt.bar(ind, norm, width, color='r') #, yerr=menStd)
     plt.ylabel('Probabilities')
-    plt.title('Nodes')
+    plt.xlabel('Nodes')
     #plt.xticks(ind + width/2., ('a', 'b', 'c', 'd', 'e', 'f', 'g'))
     plt.xticks(ind + width/2., nodes)
     return plt
@@ -434,8 +436,71 @@ def validate_model(prediction, data):
     
 
 
+###################################### Probability of Generalization Plots #####################################
+# method to find the total probability of 
+# x and all its parents recursively
+# x is the index of a node
+def p_parents(x):
+    node = node_map[x]
+    node_list = []
+    pg_sup = 0
+    if node!='root':
+        node_list.append(node)
+        node = node_parent(node)
+        
+    for node in node_list: 
+        for key, value in node_map.iteritems():   
+            if value == node:
+                pg_sup += final_prob[key]
+                break
+    return pg_sup
+    
+    
+# arguments are indices of these categories                
+def three_sub(basic, sup, sub):
+    # probability of generalization
+    pg_sub = np.sum(final_prob)
+    pg_basic = p_parents(basic)
+    pg_sup = p_parents(sup)
+    pg_list = [pg_sub, pg_basic, pg_sup]
+    pg_barplot(pg_list, "Three sub")
+
+    
+def three_basic(basic, sup, sub):
+    pg_sub = np.sum(final_prob)
+    pg_basic = np.sum(final_prob)
+    pg_sup = p_parents(sup)
+    pg_list = [pg_sub, pg_basic, pg_sup]
+    pg_barplot(pg_list, "Three basic")
+    
+  
+def three_sup(basic, sup, sub):
+    pg_sub = np.sum(final_prob)
+    pg_basic = np.sum(final_prob)
+    pg_sup = np.sum(final_prob)
+    pg_list = [pg_sub, pg_basic, pg_sup]
+    pg_barplot(pg_list, "Three sup")
+    
+
+def pg_barplot(pg_list, title):
+    
+    ind = np.arange(len(pg_list))
+    width = 1                       
+    plt.figure(figsize=(3, 6), facecolor='white')
+    plt.bar(ind, pg_list, width, color='r') #, yerr=menStd)
+    plt.ylabel('Probabilities')
+    plt.xlabel('Nodes')
+    plt.title(title)
+    plt.xticks(ind + width/2., ['sub', 'basic', 'super'])
+    plt.ylim(0,100)
+    plt.show()
+    return plt
+
 ################################################################################################################
-            
+
+#global constant parameter epsilon  - increasing its value give more and more basic level bias
+epsilon = 0.1    #0.10 - gives around 9% more basic level bias  
+beta = 1 #10.0  #only for mcmc and not for rejection sampling
 
 def main():
     np.set_printoptions(threshold=np.nan)
@@ -444,13 +509,41 @@ def main():
     # nodes, heights, parents and node_maps lists/dictionaries
     read_csv('full_space.csv')
     
-    data = [36, 39]    # observed data
+    ### small space ###
+    # 1 subordinate => c (2)
+    #data = [1]
+    
+    # 3 subordinate => c (2)
+    data = [1, 2, 3]    # observed data
+    
+    # 3 basic => b (1)
+    #data = [1, 2, 4]    # observed data
+    
+    # 3 superordinate => a (0)
+    #data = [1, 4, 5]    # observed data
+    
+    
+    
+    ### full space ###
+    # 1 subordinate => F (32)
+    #data = [17]
+    
+    # 3 subordinate => F (32)
+    #data = [22, 16, 19]    # observed data
+    
+    # 3 basic => J (29)
+    #data = [21, 24, 19]    # observed data
+    
+    # 3 superordinate => EE (26)
+    #data = [22, 16, 19]    # observed data
+    
+    
     
     # Generating coin samples
     #samples = get_coin_samples(num_samples=10000, bias=0.8)
     #plot_coin_samples(samples=samples)
       
-    
+    """
     # Rejection Sampling
     prior_weights = cal_prior(nodes)
     result = rejection_sampling(5000, prior_weights, data)
@@ -458,12 +551,21 @@ def main():
     
     #prediction = get_prediction(result)
     #validate_model(prediction, data)
+    """
     
-    
-    result = mcmc_symm(num_samples=9000, data=data)
+    result = mcmc_symm(num_samples=50000, data=data)
     plot_result(result, "Mcmc Sampling")
     
     
+    ### full space ###
+    #three_sub(29, 26, 32)
+    #three_basic(29, 26, 32)
+    #three_sup(29, 26, 32)
+    
+    ### small space ###
+    three_sub(1, 0, 2)
+    #three_basic(1, 0, 2)
+    #three_sup(1, 0, 2)
     
     """
     print "Posterior ratio: ", float(result['b']) /result['a']
