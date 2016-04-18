@@ -6,19 +6,25 @@ import matplotlib.pyplot as plt
 import collections
 import operator    # used to get the key having maximum value in a dictionary
 import csv
+import cPickle as pickle
+import os
+import sys
 
 """
-        [o]          (height = 1)
+
+        [o]           (height = 1)
          |
-        [a]          (height = 0.8)
+        [a]           (height = 0.8)
       /    \
     /        \
-  [b]       [e]        (height = 0.3)
+  [b]       [e]       (height = 0.3)
   / \       / \
-[c] [d]   [f] [g]        (height = 0)
+[c] [d]   [f] [g]     (height = 0)
  1  4      5   7
  2         6   8
  3             9
+ 
+ 
  
 """
 ################################################# Global Variables ###########################################  
@@ -145,16 +151,16 @@ def barchart(samples):
         print "No samples collected"
         return plt
     global final_prob    
-    norm = [float(i)/sum(samples)*100 for i in samples]
+    norm = [float(i)/sum(samples) for i in samples]
     final_prob = norm
     #norm2 = [norm[i] for i in np.nonzero(norm)[0]]
     #print "Norm2: ", norm2
     ind = np.arange(len(samples))
     width = 1                       
     plt.figure(figsize=(len(nodes), 6), facecolor='white')
-    plt.bar(ind, norm, width, color='r') #, yerr=menStd)
-    plt.ylabel('Probabilities')
-    plt.xlabel('Nodes')
+    plt.bar(ind, norm, width, color='grey') #, yerr=menStd)
+    plt.ylabel('Probability', fontsize=16)
+    plt.xlabel('Nodes', fontsize=16)
     #plt.xticks(ind + width/2., ('a', 'b', 'c', 'd', 'e', 'f', 'g'))
     plt.xticks(ind + width/2., nodes)
     return plt
@@ -269,7 +275,10 @@ def plot_result(result, title):
         samp.extend([value])
     plt = barchart(samp)
     plt.title(title)
-    plt.show()
+    #plt.show()
+    plt.savefig('./mcmc_plots/' + title, fontsize=20)
+    plt.close()
+    
     
     
 def get_prediction(result):
@@ -354,6 +363,12 @@ def mcmc_symm(num_samples, data):
         else:
             z[i] = x
             a[i] = 0
+    
+    # removing the first 10,000 samples
+    z = z[10000:]
+    
+    # introduce a lag of 50
+    z = z[np.arange(0, num_samples-10000, 50)]
     
     val = {'a':a, 'z':z}
     
@@ -457,53 +472,220 @@ def p_parents(x):
     
     
 # arguments are indices of these categories                
-def three_sub(basic, sup, sub):
+def three_sub(sub, basic, sup, title="Three sub"):
     # probability of generalization
     pg_sub = np.sum(final_prob)
     pg_basic = p_parents(basic)
     pg_sup = p_parents(sup)
     pg_list = [pg_sub, pg_basic, pg_sup]
-    pg_barplot(pg_list, "Three sub")
+    pg_barplot(pg_list, title)
+    return pg_list
 
     
-def three_basic(basic, sup, sub):
+def three_basic(sub, basic, sup, title="Three basic"):
     pg_sub = np.sum(final_prob)
     pg_basic = np.sum(final_prob)
     pg_sup = p_parents(sup)
     pg_list = [pg_sub, pg_basic, pg_sup]
-    pg_barplot(pg_list, "Three basic")
-    
+    pg_barplot(pg_list, title)
+    return pg_list
   
-def three_sup(basic, sup, sub):
+def three_sup(sub, basic, sup, title="Three sup"):
     pg_sub = np.sum(final_prob)
     pg_basic = np.sum(final_prob)
     pg_sup = np.sum(final_prob)
     pg_list = [pg_sub, pg_basic, pg_sup]
-    pg_barplot(pg_list, "Three sup")
-    
+    pg_barplot(pg_list, title)
+    return pg_list
 
 def pg_barplot(pg_list, title):
     
     ind = np.arange(len(pg_list))
     width = 1                       
-    plt.figure(figsize=(3, 6), facecolor='white')
-    plt.bar(ind, pg_list, width, color='r') #, yerr=menStd)
-    plt.ylabel('Probabilities')
-    plt.xlabel('Nodes')
+    plt.figure(figsize=(5, 6), facecolor='white')
+    plt.bar(ind, pg_list, width, color='grey') #, yerr=menStd)
+    plt.xlabel('Categories', fontsize=11)
+    plt.ylabel('Probability of generalization', fontsize=12)
     plt.title(title)
     plt.xticks(ind + width/2., ['sub', 'basic', 'super'])
-    plt.ylim(0,100)
-    plt.show()
+    #plt.ylim(0,1)
+    #plt.show()
+    plt.savefig('./generalization_plots/' + title, fontsize=12)
+    plt.close()
     return plt
 
 ################################################################################################################
 
 #global constant parameter epsilon  - increasing its value give more and more basic level bias
-epsilon = 0.1    #0.10 - gives around 9% more basic level bias  
+epsilon = 0.0   #0.10 - gives around 9% more basic level bias  
 beta = 1 #10.0  #only for mcmc and not for rejection sampling
+# final prob = gets initialized in bar plot
 
+
+def vegetables(flag):
+    if flag == '1sub':
+        #1 subordinate => B (33)
+        data = [16]
+    
+    if flag == '3sub':
+        # 3 subordinate => B (33)
+        data = [16, 17, 18]    # observed data
+    
+    if flag == '3basic':
+        # 3 basic => J (29)
+        data = [16, 21, 22]    # observed data
+    
+    if flag == '3sup':
+        # 3 superordinate => BB (27)
+        data = [16, 25, 26]    # observed data
+    
+    return data
+    
+
+def vehicles(flag):
+    if flag == '1sub':
+        #1 subordinate => E (22)
+        data = [31]
+    
+    if flag == '3sub':
+        # 3 subordinate => E (22)
+        data = [31, 32, 33]    # observed data
+    
+    if flag == '3basic':
+        # 3 basic => T (17)
+        data = [31, 36, 37]    # observed data
+    
+    if flag == '3sup':
+        # 3 superordinate => HH (14)
+        data = [31, 40, 41]    # observed data
+    
+    return data
+    
+
+def animals(flag):
+    if flag == '1sub':
+        #1 subordinate => A (11)
+        data = [1]
+    
+    if flag == '3sub':
+        # 3 subordinate => A (11)
+        data = [1, 2, 3]    # observed data
+    
+    if flag == '3basic':
+        # 3 basic => R (7)
+        data = [1, 6, 7]    # observed data
+    
+    if flag == '3sup':
+        # 3 superordinate => JJ (2)
+        data = [1, 10, 11]    # observed data
+    
+    return data
+    
+
+            
+def automate_result():
+    # vegetables
+    data = vegetables('1sub')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Vegetable: 1 sub")
+    vegetable_1sub = three_sub(33, 29, 27, 'Vegetable: 1 sub')
+    
+    data = vegetables('3sub')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Vegetable: 3 sub")
+    vegetable_3sub = three_sub(33, 29, 27, "Vegetable: 3 sub")
+    
+    data = vegetables('3basic')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Vegetable: 3 basic")
+    vegetable_3basic = three_basic(33, 29, 27, 'Vegetable: 3 basic')
+    
+    data = vegetables('3sup')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Vegetable: 3 sup")
+    vegetable_3sup = three_sup(33, 29, 27, 'Vegetable: 3 sup')
+   
+    
+    # Vehicles
+    data = vehicles('1sub')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Vehicle: 1 sub")
+    vehicle_1sub = three_sub(22, 17, 14, "Vehicle: 1 sub")
+    
+    data = vehicles('3sub')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Vehicle: 3 sub")
+    vehicle_3sub = three_sub(22, 17, 14, "Vehicle: 3 sub")
+    
+    data = vehicles('3basic')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Vehicle: 3 basic")
+    vehicle_3basic = three_basic(22, 17, 14, "Vehicle: 3 basic")
+    
+    data = vehicles('3sup')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Vehicle: 3 sup")
+    vehicle_3sup = three_sup(22, 17, 14, "Vehicle: 3 sup")
+    
+    
+    # Animals
+    data = animals('1sub')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Animal: 1 sub")
+    animal_1sub = three_sub(11, 7, 2, "Animal: 1 sub")
+    
+    data = animals('3sub')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Animal: 3 sub")
+    animal_3sub = three_sub(11, 7, 2, "Animal: 3 sub")
+    
+    data = animals('3basic')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Animal: 3 basic")
+    animal_3basic = three_basic(11, 7, 2, "Animal: 3 basic")
+    
+    data = animals('3sup')
+    result = mcmc_symm(num_samples=60000, data=data)
+    plot_result(result, "Animal: 3 sup")
+    animal_3sup = three_sup(11, 7, 2, "Animal: 3 sup")
+    
+    
+    data = {
+            'vegetable_1sub' : vegetable_1sub,
+            'vegetable_3sub' : vegetable_3sub,
+            'vegetable_3basic' : vegetable_3basic,
+            'vegetable_3sup' : vegetable_3sup,
+    
+            'vehicle_1sub' : vehicle_1sub,
+            'vehicle_3sub' : vehicle_3sub,
+            'vehicle_3basic' : vehicle_3basic,
+            'vehicle_3sup' : vehicle_3sup, 
+    
+            'animal_1sub' : animal_1sub,
+            'animal_3sub' : animal_3sub,
+            'animal_3basic' : animal_3basic,
+            'animal_3sup' : animal_3sup, 
+            }
+            
+    saveto_pickle(data)
+ 
+  
+def saveto_pickle(data):
+    fname = sys.argv[1]
+    pickle.dump(data, open(fname, 'wb'))
+    print ("pickle complete")
+    print (fname)
+    
+################################################################################################################    
+        
 def main():
     np.set_printoptions(threshold=np.nan)
+    if len(sys.argv) > 1:
+        pass 
+    else:
+        print "Require a file to store the output data, square_length and label_index"
+        exit(0)
+ 
     
     # read data from the csv file to construct
     # nodes, heights, parents and node_maps lists/dictionaries
@@ -514,14 +696,13 @@ def main():
     #data = [1]
     
     # 3 subordinate => c (2)
-    data = [1, 2, 3]    # observed data
+    #data = [1, 2, 3]    # observed data
     
     # 3 basic => b (1)
     #data = [1, 2, 4]    # observed data
     
     # 3 superordinate => a (0)
     #data = [1, 4, 5]    # observed data
-    
     
     
     ### full space ###
@@ -553,20 +734,31 @@ def main():
     #validate_model(prediction, data)
     """
     
-    result = mcmc_symm(num_samples=50000, data=data)
-    plot_result(result, "Mcmc Sampling")
+    #data = vegetables('3basic')
+    #result = mcmc_symm(num_samples=60000, data=data)
+    #plot_result(result, "Mcmc Sampling")
     
+    # vegetables: (33, 29, 27)
+    # vehicles: (22, 17, 14)
+    # animals: (11, 7, 2)
     
     ### full space ###
-    #three_sub(29, 26, 32)
-    #three_basic(29, 26, 32)
-    #three_sup(29, 26, 32)
+    #pg_list = three_sub(33, 29, 27)
+    #pg_list = three_basic(33, 29, 27)
+    #pg_list = three_sup(29, 26, 32)
     
     ### small space ###
-    three_sub(1, 0, 2)
-    #three_basic(1, 0, 2)
-    #three_sup(1, 0, 2)
+    #pg_list = three_sub(2, 1, 0)
+    #pg_list = three_basic(2, 1, 0)
+    #pg_list = three_sup(2, 1, 0)
     
+    automate_result()    
+       
+if __name__ == "__main__": main()
+
+    
+
+def hypothesis_testing():
     """
     print "Posterior ratio: ", float(result['b']) /result['a']
     bayes_factor = float( likelihood('b', data) ) / likelihood('a', data)
@@ -575,7 +767,4 @@ def main():
     prior_odds = float(prior[0]) / prior[2]
     print "Prior Odds: ", prior_odds
     print "posterior odds: ", float(bayes_factor)*prior_odds
-    """
-    
-       
-if __name__ == "__main__": main()
+    """ 
