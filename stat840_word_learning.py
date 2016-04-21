@@ -98,12 +98,13 @@ def cal_prior(nodes):
 
 def raw_prior(node):
     b = 1
-    if node == 'J':
+    if node == 'J' or node == 'R' or node == 'T':
         b = beta
     return b*( node_height(node_parent(node)) - node_height(node) )
     
 
 def prior(node):
+    return 1.0/len(nodes)   #uniform prior
     # sum of priors of all nodes
     prior_denom = sum([raw_prior(node_x) for node_x in nodes])
     # return the prior of the given node
@@ -162,7 +163,7 @@ def barchart(samples):
     plt.ylabel('Probability', fontsize=16)
     plt.xlabel('Nodes', fontsize=16)
     #plt.xticks(ind + width/2., ('a', 'b', 'c', 'd', 'e', 'f', 'g'))
-    plt.xticks(ind + width/2., nodes)
+    plt.xticks(ind + width/2., nodes, fontsize=16)
     return plt
 
 
@@ -364,6 +365,9 @@ def mcmc_symm(num_samples, data):
             z[i] = x
             a[i] = 0
     
+    
+    #np.save("./result_files/normal_small4.npy", z)
+    #np.save("./result_files/normal_small_acc4.npy", a)
     # removing the first 10,000 samples
     z = z[10000:]
     
@@ -372,11 +376,10 @@ def mcmc_symm(num_samples, data):
     
     val = {'a':a, 'z':z}
     
-    print "\n Mcmc symmetric distribution"
-    print "Samples Accepted: ", sum(a)
-    print "Total Samples: ", num_samples
-    print z
-    np.save("test.npy", z)
+    # "\n Mcmc symmetric distribution"
+    #print "Samples Accepted: ", sum(a)
+    #print "Total Samples: ", num_samples
+    #print z
     result  = mcmc_result(z)
     return(result)
 
@@ -415,7 +418,7 @@ def mcmc_epsilon(num_samples, data):
     print "Samples Accepted: ", sum(a)
     print "Total Samples: ", num_samples
     
-    np.save("test.npy", z)
+    np.save("random.npy", z)
     result  = mcmc_result(z)
     return(result)
     
@@ -516,12 +519,6 @@ def pg_barplot(pg_list, title):
 
 ################################################################################################################
 
-#global constant parameter epsilon  - increasing its value give more and more basic level bias
-epsilon = 0.0   #0.10 - gives around 9% more basic level bias  
-beta = 1 #10.0  #only for mcmc and not for rejection sampling
-# final prob = gets initialized in bar plot
-
-
 def vegetables(flag):
     if flag == '1sub':
         #1 subordinate => B (33)
@@ -584,68 +581,70 @@ def animals(flag):
 
             
 def automate_result():
+    num_samples = 50000 #110000
+    
     # vegetables
     data = vegetables('1sub')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Vegetable: 1 sub")
     vegetable_1sub = three_sub(33, 29, 27, 'Vegetable: 1 sub')
     
     data = vegetables('3sub')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Vegetable: 3 sub")
     vegetable_3sub = three_sub(33, 29, 27, "Vegetable: 3 sub")
     
     data = vegetables('3basic')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Vegetable: 3 basic")
     vegetable_3basic = three_basic(33, 29, 27, 'Vegetable: 3 basic')
     
     data = vegetables('3sup')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Vegetable: 3 sup")
     vegetable_3sup = three_sup(33, 29, 27, 'Vegetable: 3 sup')
    
     
     # Vehicles
     data = vehicles('1sub')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Vehicle: 1 sub")
     vehicle_1sub = three_sub(22, 17, 14, "Vehicle: 1 sub")
     
     data = vehicles('3sub')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Vehicle: 3 sub")
     vehicle_3sub = three_sub(22, 17, 14, "Vehicle: 3 sub")
     
     data = vehicles('3basic')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Vehicle: 3 basic")
     vehicle_3basic = three_basic(22, 17, 14, "Vehicle: 3 basic")
     
     data = vehicles('3sup')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Vehicle: 3 sup")
     vehicle_3sup = three_sup(22, 17, 14, "Vehicle: 3 sup")
     
     
     # Animals
     data = animals('1sub')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Animal: 1 sub")
     animal_1sub = three_sub(11, 7, 2, "Animal: 1 sub")
     
     data = animals('3sub')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Animal: 3 sub")
     animal_3sub = three_sub(11, 7, 2, "Animal: 3 sub")
     
     data = animals('3basic')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Animal: 3 basic")
     animal_3basic = three_basic(11, 7, 2, "Animal: 3 basic")
     
     data = animals('3sup')
-    result = mcmc_symm(num_samples=60000, data=data)
+    result = mcmc_symm(num_samples=num_samples, data=data)
     plot_result(result, "Animal: 3 sup")
     animal_3sup = three_sup(11, 7, 2, "Animal: 3 sup")
     
@@ -675,8 +674,76 @@ def saveto_pickle(data):
     pickle.dump(data, open(fname, 'wb'))
     print ("pickle complete")
     print (fname)
+
+ 
+def automate_result_small():
+    num_samples = 50000 #110000
     
+    # left branch
+    data = [1]
+    result = mcmc_symm(num_samples=num_samples, data=data)
+    plot_result(result, "left branch: 1 sub")
+    left_branch_1sub = three_sub(2, 1, 0, 'left branch: 1 sub')
+    
+    data = [1, 2, 3]
+    result = mcmc_symm(num_samples=num_samples, data=data)
+    plot_result(result, "left branch: 3 sub")
+    left_branch_3sub = three_sub(2, 1, 0, "left branch: 3 sub")
+    
+    data = [1, 2, 4]
+    result = mcmc_symm(num_samples=num_samples, data=data)
+    plot_result(result, "left branch: 3 basic")
+    left_branch_3basic = three_basic(2, 1, 0, 'left branch: 3 basic')
+    
+    data = [1, 4, 5]
+    result = mcmc_symm(num_samples=num_samples, data=data)
+    plot_result(result, "left branch: 3 sup")
+    left_branch_3sup = three_sup(2, 1, 0, 'left branch: 3 sup')
+   
+    
+    # right branch
+    data = [7]
+    result = mcmc_symm(num_samples=num_samples, data=data)
+    plot_result(result, "right branch: 1 sub")
+    right_branch_1sub = three_sub(6, 4, 0, "right branch: 1 sub")
+    
+    data = [7, 8, 9]
+    result = mcmc_symm(num_samples=num_samples, data=data)
+    plot_result(result, "right branch: 3 sub")
+    right_branch_3sub = three_sub(6, 4, 0, "right branch: 3 sub")
+    
+    data = [7, 8, 5]
+    result = mcmc_symm(num_samples=num_samples, data=data)
+    plot_result(result, "right branch: 3 basic")
+    right_branch_3basic = three_basic(6, 4, 0, "right branch: 3 basic")
+    
+    data = [7, 5, 4]
+    result = mcmc_symm(num_samples=num_samples, data=data)
+    plot_result(result, "right branch: 3 sup")
+    right_branch_3sup = three_sup(6, 4, 0, "right branch: 3 sup")
+    
+    
+    data = {
+            'left_branch_1sub' : left_branch_1sub,
+            'left_branch_3sub' : left_branch_3sub,
+            'left_branch_3basic' : left_branch_3basic,
+            'left_branch_3sup' : left_branch_3sup,
+    
+            'right_branch_1sub' : right_branch_1sub,
+            'right_branch_3sub' : right_branch_3sub,
+            'right_branch_3basic' : right_branch_3basic,
+            'right_branch_3sup' : right_branch_3sup, 
+
+            }
+            
+    saveto_pickle(data)
+        
 ################################################################################################################    
+#global constant parameter epsilon  - increasing its value give more and more basic level bias
+epsilon = 0.0   #0.10 - gives around 9% more basic level bias  
+beta = 40 #10.0  #only for mcmc and not for rejection sampling
+# final prob = gets initialized in bar plot\
+
         
 def main():
     np.set_printoptions(threshold=np.nan)
@@ -707,7 +774,7 @@ def main():
     
     ### full space ###
     # 1 subordinate => F (32)
-    #data = [17]
+    #data = [22]
     
     # 3 subordinate => F (32)
     #data = [22, 16, 19]    # observed data
@@ -716,7 +783,7 @@ def main():
     #data = [21, 24, 19]    # observed data
     
     # 3 superordinate => EE (26)
-    #data = [22, 16, 19]    # observed data
+    #data = [21, 28, 27]    # observed data
     
     
     
@@ -724,26 +791,31 @@ def main():
     #samples = get_coin_samples(num_samples=10000, bias=0.8)
     #plot_coin_samples(samples=samples)
       
-    """
+    
+    
     # Rejection Sampling
-    prior_weights = cal_prior(nodes)
-    result = rejection_sampling(5000, prior_weights, data)
-    plot_result(result, "Rejection Sampling")
+    #num_samples = 50000
+    #data = vegetables('3sub')
+    #data = [31]
+    #prior_weights = cal_prior(nodes)
+    #result = rejection_sampling(50000, prior_weights, data)
+    #plot_result(result, "Rejection Sampling")
     
     #prediction = get_prediction(result)
     #validate_model(prediction, data)
-    """
     
-    #data = vegetables('3basic')
-    #result = mcmc_symm(num_samples=60000, data=data)
-    #plot_result(result, "Mcmc Sampling")
+    
+    #data = [4]
+    #result = mcmc_symm(num_samples=50000, data=data)
+    #plot_result(result, "MCMC: small space, 3 sup, data=[1, 4, 5]")
+    #test = three_sup(2, 1, 0, "Animal: 1 sub")
     
     # vegetables: (33, 29, 27)
     # vehicles: (22, 17, 14)
     # animals: (11, 7, 2)
     
     ### full space ###
-    #pg_list = three_sub(33, 29, 27)
+    #pg_list = three_sub(32, 29, 26)
     #pg_list = three_basic(33, 29, 27)
     #pg_list = three_sup(29, 26, 32)
     
@@ -752,7 +824,16 @@ def main():
     #pg_list = three_basic(2, 1, 0)
     #pg_list = three_sup(2, 1, 0)
     
-    automate_result()    
+    #automate_result_small() 
+    automate_result() 
+    
+    """
+    num_samples = 50000
+    data = vegetables('3sub')
+    result = mcmc_symm(num_samples=num_samples, data=data)
+    plot_result(result, "3 sub, normal proposal")
+    vegetable_3sub = three_sub(33, 29, 27, "3 sub, normal proposal") 
+    """
        
 if __name__ == "__main__": main()
 
