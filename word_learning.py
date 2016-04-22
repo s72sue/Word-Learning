@@ -1,14 +1,11 @@
-#access a method from another file
-#from wl_helper import *
 import numpy as np
-#import pymc3 as pm
 import matplotlib.pyplot as plt
 import collections
-import operator    # used to get the key having maximum value in a dictionary
 import csv
 import cPickle as pickle
 import os
 import sys
+import operator    # used to get the key having maximum value in a dictionary
 
 """
 Sample small hypothesis space created to  
@@ -329,6 +326,18 @@ samples_considred = 0
 
 
 def rejection_sampling(acc_samples, prior_weights, data):
+    """
+    Returns accepted samples obtained by rejection sampling
+    Parameters
+    ----------
+    acc_samples: int
+        Number of accepted samples required
+    prior_weights: list
+        list of priors of all nodes in hypothesis space
+    data: list
+        List of integers representing observed examples e.g., [1, 2, 3]
+    """
+    
     result = data_samples(acc_samples, prior_weights, data)
     
     print "Rejection Sampling"
@@ -340,16 +349,40 @@ def rejection_sampling(acc_samples, prior_weights, data):
     return result
     
 
-# used to generate n accepted samples for result
 def data_samples(acc_samples, prior_weights, data):
+    """
+    Returns accepted samples obtained by rejection sampling
+    Parameters
+    ----------
+    acc_samples: int
+        Number of accepted samples required
+    prior_weights: list
+        list of priors of all nodes in hypothesis space
+    data: list
+        List of integers representing observed examples e.g., [1, 2, 3]
+    """
+    
     result = init_result()
-    #call draw_samples n times
+    # call draw_samples n (acc_samples) times
     for x in range(acc_samples):
         draw_Samples(prior_weights, data, result)
     return result
         
 
 def draw_Samples(prior_weights, data, result):
+    """
+    Returns one accepted sample
+    Parameters
+    ----------
+    prior_weights: list
+        List of priors of all nodes in hypothesis space
+    data: list
+        List of integers representing observed examples e.g., [1, 2, 3]
+    result: dict
+        An empty dictionary for storing the resulting 
+        samples. 
+    """
+    
     global total_samples
     global rejected_samples
     global samples_considred  # accepted samples added to the result
@@ -369,43 +402,62 @@ def draw_Samples(prior_weights, data, result):
       
     
 def init_result(): 
+    """
+    Returns an empty dictionary for storing the resulting 
+    samples generated from rejection sampling or mcmc.
+    
+    The dictionary has keys as nodes and 
+    values as the number of times the respective  
+    nodes were predicted.
+    """
+    
     # dictionary containing final result
     result = collections.OrderedDict()
     for node in nodes:
         result[node] = 0
-        #result[nodes.index(node)] = 0
     return result    
         
     
 def plot_result(result, title): 
+    """
+    Creates a histogram from the samples   
+    representing the posterior distribution
+    It calls barchart() to generate the histogram
+    """
+    
     samp = []
     for key,value in result.items():
         samp.extend([value])
     plt = barchart(samp)
     plt.title(title)
-    plt.show()
-    #plt.savefig('./mcmc_plots/' + title, fontsize=20)
-    #plt.close()
+    #plt.show()
+    plt.savefig('./mcmc_plots/' + title, fontsize=20)
+    plt.close()
     
     
     
 def get_prediction(result):
     """
-    result is a dictionary with keys as nodes and 
+    Result is a dictionary with keys as nodes and 
     values as the number of times the respective nodes 
-    were predicted
+    were predicted.
     
-    returns the node name e.g., b
+    Returns the node name e.g., 'b' which is the MAP estimate
     """
+    
     return max(result.iteritems(), key=operator.itemgetter(1))[0]
     
 
-########################################### Metropolis Hastings ###########################################
+########################################### Markov Chain Monte Carlo ###########################################
 
 
-# this is the function defining the target distribution 
-# we want to sample from i.e the posterior
+
 def target(node, data):
+    """
+    Defines the target distribution we want to 
+    sample from i.e., the posterior distribution.
+    """
+    
     # find the mapping to letters
     node = node_map[node]
     pri = prior(node)
@@ -419,30 +471,70 @@ def target(node, data):
 # symmetric proposal function
 # equally likely to propose one number higher or lower
 def symm_pfun(x):
+    """
+    Defines the proposal function
+    1) Equally likely to propose one number higher or lower
+    2) A variant of symmetric random proposal
+    """
+    
     return np.random.choice(range(len(nodes)))
+    # uncomment the following and comment out the  
+    # line above for equally likely proposal
+    """
     if flip_coin(0.5):
         return x-1
     else:
-        return x+1    
+        return x+1 
+    """       
+        
+
+def symm_pdist(x):   
+    """
+    Defines a symmetric proposal distribution
+    """
     
-    
-# symmetric proposal distribution
-def symm_pdist(x):    
     return 0.5
 
 
 def normal_pfun(sigma, mu):
+    """
+    Defines a proposal function which is a variant of
+    the normal distribution. 
+    
+    Returns the sample from normal distributions parsed as an integer
+    """
+    
     # return a sample from the normal distribution
     return int(sigma * np.random.randn() + mu)
        
        
 # probability of x2 given x1    
-def normal_pdist(x, mu, sigma): 
+def normal_pdist(x, mu, sigma):
+    """
+    Defines the probability density for the normal distribution
+    Returns the density value for a given x.
+    """ 
     return ( 1/np.sqrt(2*np.pi*sigma**2) ) *  np.exp(-(x-mu)**2 / 2*sigma**2)
     
     
-# uses gamma distribution as the proposal distribution    
+   
 def mcmc_symm(num_samples, data):
+    """
+    Returns num_samples samples obtained by mcmc
+    Parameters
+    ----------
+    num_samples: int
+        Number of samples required
+    data: list
+        List of integers representing observed examples e.g., [1, 2, 3]
+   
+   Returns
+    -------
+     result: dict
+        An dictionary storing the resulting samples 
+        corresponding to nodes. 
+    """
+    
     z = np.zeros(num_samples)
     a = np.zeros(num_samples)
     z[0] = 0
@@ -475,70 +567,45 @@ def mcmc_symm(num_samples, data):
     
     #np.save("./result_files/normal_small4.npy", z)
     #np.save("./result_files/normal_small_acc4.npy", a)
+    
     # removing the first 10,000 samples
     z = z[10000:]
-    
     # introduce a lag of 50
     z = z[np.arange(0, num_samples-10000, 50)]
     
     val = {'a':a, 'z':z}
     
-    # "\n Mcmc symmetric distribution"
-    #print "Samples Accepted: ", sum(a)
-    #print "Total Samples: ", num_samples
-    #print z
-    result  = mcmc_result(z)
-    return(result)
-
-# uses gamma distribution as the proposal distribution    
-def mcmc_epsilon(num_samples, data):
-    z = np.zeros(num_samples)
-    a = np.zeros(num_samples)
-    z[0] = 0
-    for i in range(2, num_samples):
-        
-        x = z[i-1]   # old state
-        y = np.random.gamma(shape=1, scale=1)   # propose a new state
-        
-        # accept new y with prob
-        if y >= 0 and y < len(nodes):
-            rtarget = target(y, data)/target(x, data)         # target ratio
-            #rproposal = symm_pdist(y, x) / symm_pdist(x, y)   # proposal ratio
-            rproposal = symm_pdist(x) / symm_pdist(y)
-            p = rtarget*rproposal
-        else:
-            p = 0    
-            
-        # generate a u from the uniform distribution     
-        u = np.random.uniform(0,1)
-        if u < min(p, 1):
-            # accept the proposal
-            z[i] = y
-            a[i] = 1
-        else:
-            z[i] = x
-            a[i] = 0
-    
-    val = {'a':a, 'z':z}
-    
-    print "\n Mcmc symmetric distribution"
-    print "Samples Accepted: ", sum(a)
-    print "Total Samples: ", num_samples
-    
-    np.save("random.npy", z)
     result  = mcmc_result(z)
     return(result)
     
     
-
+    
 def credible_interval(z):
+    """
+    Computes the 95% credible interval using percentiles
+    z: list
+        List of samples drawn from mcmc.
+    """
     print "C Interval: ", np.percentile(z, 2.5)
     print "C Interval: ", np.percentile(z, 97.5)
+ 
+
     
 def mcmc_result(state_samples):
     """
-    state_samples: list of samples drawn through mcmc
+    Creates the result dictionary using the samples from mcmc
+    Parameters
+    ----------
+    state_samples: list 
+        List of samples drawn through mcmc
+        
+    Returns
+    -------
+     result: dict
+        An dictionary storing the resulting samples 
+        corresponding to nodes    
     """
+    
     result = init_result()
     for sample in state_samples:
         node = node_map[sample]
@@ -546,26 +613,21 @@ def mcmc_result(state_samples):
     return result    
     
     
-################################################################################################################
-# Generate from the model and estimate the parameters
-def validate_model(prediction, data):
-    lik = likelihood(prediction, data)
-    pri = prior(prediction)
-    
-    lik2 = likelihood('a', data)
-    pri2 = prior('a')
-    
-    #print lik
-    #print pri
-    print "Expectation: ", lik*pri + lik2*pri2
-    
 
 
-###################################### Probability of Generalization Plots #####################################
-# method to find the total probability of 
-# x and all its parents recursively
-# x is the index of a node
+########################################## Probability of Generalization Plots #########################################
+
 def p_parents(x):
+    """
+    Finds the total probability of x and 
+    all its' parents recursively
+    
+    Parameters
+    ----------
+    x: int
+        The index of a node
+    """
+    
     node = node_map[x]
     node_list = []
     pg_sup = 0
@@ -581,9 +643,29 @@ def p_parents(x):
     return pg_sup
     
     
-# arguments are indices of these categories                
 def three_sub(sub, basic, sup, title="Three sub"):
-    # probability of generalization
+    """
+    Computes the probability of generalization when 
+    three examples from the subordinate category are observed
+    
+    Parameters
+    ----------
+    sub: int
+        The index of the subordinate category node
+    basic: int
+        The index of the basic category node
+    sup: int 
+        The index of the superordinate category node
+    title: string
+        The title fo the plot (also used as filename to save the plot)
+    
+    Returns
+    -------
+    pg_list: list
+        A list containing the probabilities of generalization for an 
+        example 'y' from the subordinate, basic and superordiante categories
+    """
+    
     pg_sub = np.sum(final_prob)
     pg_basic = p_parents(basic)
     pg_sup = p_parents(sup)
@@ -593,14 +675,59 @@ def three_sub(sub, basic, sup, title="Three sub"):
 
     
 def three_basic(sub, basic, sup, title="Three basic"):
+    """
+    Computes the probability of generalization when 
+    three examples from the basic category are observed
+    
+    Parameters
+    ----------
+    sub: int
+        The index of the subordinate category node
+    basic: int
+        The index of the basic category node
+    sup: int 
+        The index of the superordinate category node
+    title: string
+        The title fo the plot (also used as filename to save the plot)
+    
+    Returns
+    -------
+    pg_list: list
+        A list containing the probabilities of generalization for an 
+        example 'y' from the subordinate, basic and superordiante categories
+    """
+    
     pg_sub = np.sum(final_prob)
     pg_basic = np.sum(final_prob)
     pg_sup = p_parents(sup)
     pg_list = [pg_sub, pg_basic, pg_sup]
     pg_barplot(pg_list, title)
     return pg_list
+    
   
 def three_sup(sub, basic, sup, title="Three sup"):
+    """
+    Computes the probability of generalization when 
+    three examples from the subordinate category are observed
+    
+    Parameters
+    ----------
+    sub: int
+        The index of the subordinate category node
+    basic: int
+        The index of the basic category node
+    sup: int 
+        The index of the superordinate category node
+    title: string
+        The title fo the plot (also used as filename to save the plot)
+    
+    Returns
+    -------
+    pg_list: list
+        A list containing the probabilities of generalization for an 
+        example 'y' from the subordinate, basic and superordiante categories
+    """
+    
     pg_sub = np.sum(final_prob)
     pg_basic = np.sum(final_prob)
     pg_sup = np.sum(final_prob)
@@ -608,7 +735,20 @@ def three_sup(sub, basic, sup, title="Three sup"):
     pg_barplot(pg_list, title)
     return pg_list
 
+
 def pg_barplot(pg_list, title):
+    """
+    Creates a histogram to visualize the probability
+    of generalization and saves it in a directory
+    
+    Parameters
+    ----------
+    pg_list: list
+        A list containing the probabilities of generalization for an 
+        example 'y' from the subordinate, basic and superordiante categories
+    title: string
+        The title fo the plot (also used as filename to save the plot)
+    """
     
     ind = np.arange(len(pg_list))
     width = 1                       
@@ -618,15 +758,21 @@ def pg_barplot(pg_list, title):
     plt.ylabel('Probability of generalization', fontsize=12)
     plt.title(title)
     plt.xticks(ind + width/2., ['sub', 'basic', 'super'])
-    #plt.ylim(0,1)
     #plt.show()
     plt.savefig('./generalization_plots/' + title, fontsize=12)
     plt.close()
     return plt
 
-################################################################################################################
+
+###################################################### Data Processing Methods ##########################################################
 
 def vegetables(flag):
+    """
+    Returns the data (examples) from the vegetable cluster in the 
+    large hypothesis space. The category and number of examples 
+    depends on the flag argument
+    """
+     
     if flag == '1sub':
         #1 subordinate => B (33)
         data = [16]
@@ -647,6 +793,12 @@ def vegetables(flag):
     
 
 def vehicles(flag):
+    """
+    Returns the data (examples) from the vehicle cluster in the 
+    large hypothesis space. The category and number of examples 
+    depends on the flag argument
+    """
+    
     if flag == '1sub':
         #1 subordinate => E (22)
         data = [31]
@@ -667,6 +819,12 @@ def vehicles(flag):
     
 
 def animals(flag):
+    """
+    Returns the data (examples) from the animal cluster in the 
+    large hypothesis space. The category and number of examples 
+    depends on the flag argument
+    """
+    
     if flag == '1sub':
         #1 subordinate => A (11)
         data = [1]
@@ -688,7 +846,13 @@ def animals(flag):
 
             
 def automate_result():
-    num_samples = 50000 #110000
+    """
+    Automates creation of generalization plots for the 
+    large hypothesis space. Saves all the plots in a directory.
+    """
+    
+    # number of samples for mcmc
+    num_samples = 50000 
     
     # vegetables
     data = vegetables('1sub')
@@ -775,16 +939,15 @@ def automate_result():
             
     saveto_pickle(data)
  
-  
-def saveto_pickle(data):
-    fname = sys.argv[1]
-    pickle.dump(data, open(fname, 'wb'))
-    print ("pickle complete")
-    print (fname)
 
- 
 def automate_result_small():
-    num_samples = 50000 #110000
+    """
+    Automates creation of generalization plots for the 
+    small hypothesis space. Saves all the plots in a directory.
+    """
+    
+    # number of samples for mcmc   
+    num_samples = 50000 
     
     # left branch
     data = [1]
@@ -844,16 +1007,39 @@ def automate_result_small():
             }
             
     saveto_pickle(data)
-        
-################################################################################################################    
-#global constant parameter epsilon  - increasing its value give more and more basic level bias
-epsilon = 0.0  #0.10 - gives around 9% more basic level bias  
-beta = 40 #10.0  #only for mcmc and not for rejection sampling
-# final prob = gets initialized in bar plot\
+    
+    
+def saveto_pickle(data):
+    """
+    Writes the data to a pickle file and saves it.
+    
+    Parameters
+    ----------
+    data: dictionary
+        A dictionary containing attributes and their values
+    """
+    
+    # filename was passed as an argument to the script
+    fname = sys.argv[1]  
+    pickle.dump(data, open(fname, 'wb'))
+    print ("pickle complete")
+    print (fname)
 
         
+#######################################################################################################################  
+ 
+# global constant parameter epsilon  
+epsilon = 0.00   # use 0.05 for small hypothesis space 
+
+# parameter to fit to the experimental data
+beta = 40   #only for mcmc and not for rejection sampling
+
+
 def main():
     np.set_printoptions(threshold=np.nan)
+    
+    # Check whether the name of the pickle file  
+    # was provided as an argument
     if len(sys.argv) > 1:
         pass 
     else:
@@ -864,6 +1050,9 @@ def main():
     # read data from the csv file to construct
     # nodes, heights, parents and node_maps lists/dictionaries
     read_csv('full_space.csv')
+    automate_result()
+    #automate_result_small() 
+    
     
     ### small space ###
     # 1 subordinate => c (2)
@@ -881,7 +1070,7 @@ def main():
     
     ### full space ###
     # 1 subordinate => F (32)
-    data = [22]
+    #data = [22]
     
     # 3 subordinate => F (32)
     #data = [22, 16, 19]    # observed data
@@ -893,66 +1082,20 @@ def main():
     #data = [21, 28, 27]    # observed data
     
     
-    
-    # Generating coin samples
-    #samples = get_coin_samples(num_samples=10000, bias=0.8)
-    #plot_coin_samples(samples=samples)
-      
-    
-    
-    # Rejection Sampling
-    #num_samples = 50000
-    #data = vegetables('3sub')
-    #data = [31]
+    ### Rejection Sampling
     #prior_weights = cal_prior(nodes)
     #result = rejection_sampling(50000, prior_weights, data)
     #plot_result(result, "Rejection Sampling")
     
+    ### MCMC
+    #result = mcmc_symm(num_samples=50000, data=data)
     #prediction = get_prediction(result)
-    #validate_model(prediction, data)
+    #plot_result(result, "MCMC: full space, 1 sub, data=[22], Beta=40")
+    #pg_list = three_sup(2, 1, 0, "Animal: 1 sub")
+
+    ### Generating coin samples
+    #samples = get_coin_samples(num_samples=10000, bias=0.8)
+    #plot_coin_samples(samples=samples)
     
-    
-    #data = [4]
-    result = mcmc_symm(num_samples=50000, data=data)
-    plot_result(result, "MCMC: full space, 1 sub, data=[22], Beta=40")
-    #test = three_sup(2, 1, 0, "Animal: 1 sub")
-    
-    # vegetables: (33, 29, 27)
-    # vehicles: (22, 17, 14)
-    # animals: (11, 7, 2)
-    
-    ### full space ###
-    #pg_list = three_sub(32, 29, 26)
-    #pg_list = three_basic(33, 29, 27)
-    #pg_list = three_sup(29, 26, 32)
-    
-    ### small space ###
-    #pg_list = three_sub(2, 1, 0)
-    #pg_list = three_basic(2, 1, 0)
-    #pg_list = three_sup(2, 1, 0)
-    
-    #automate_result_small() 
-    #automate_result() 
-    
-    """
-    num_samples = 50000
-    data = vegetables('3sub')
-    result = mcmc_symm(num_samples=num_samples, data=data)
-    plot_result(result, "3 sub, normal proposal")
-    vegetable_3sub = three_sub(33, 29, 27, "3 sub, normal proposal") 
-    """
        
 if __name__ == "__main__": main()
-
-    
-
-def hypothesis_testing():
-    """
-    print "Posterior ratio: ", float(result['b']) /result['a']
-    bayes_factor = float( likelihood('b', data) ) / likelihood('a', data)
-    print "Bayes factor: ", bayes_factor
-    prior = cal_prior(nodes)
-    prior_odds = float(prior[0]) / prior[2]
-    print "Prior Odds: ", prior_odds
-    print "posterior odds: ", float(bayes_factor)*prior_odds
-    """ 
